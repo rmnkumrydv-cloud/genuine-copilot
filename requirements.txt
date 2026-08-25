@@ -23,6 +23,11 @@ copydetect>=0.5.0
 fastapi>=0.110
 uvicorn[standard]>=0.29
 
+# LLM explainer (Gate 5). Lightweight httpx-based SDK — NOT an ML wheel.
+# Import is lazy and gated on GROQ_API_KEY, so the deterministic core runs
+# fully without a key (falls back to the template report in report.py).
+groq>=1.6,<2
+
 # Testing
 pytest>=8.0
 pytest-cov>=5.0

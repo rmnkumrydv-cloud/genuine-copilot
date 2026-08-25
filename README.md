@@ -30,8 +30,11 @@ is enforced structurally, not by good intentions:
   Changing a weight changes the verdict with zero code change — proven by
   `test_weights_are_data_not_code`.
 
-When the Groq explainer lands (Gate 5), it will receive the finished score and
-evidence and write prose *about* them. It cannot change a number.
+When the Groq explainer runs (Gate 5, `genuine/llm/`), it receives the finished
+score and evidence *summaries* and writes prose *about* them plus interview
+questions. It cannot change a number, and it never sees raw source or README
+text — so a hostile repo has no channel to inject instructions (see
+[AI explanation & interview prep](#ai-explanation--interview-prep-gate-5)).
 
 ---
 
@@ -95,7 +98,38 @@ never trip it.
 
 ---
 
-## Quickstart
+## AI explanation & interview prep (Gate 5)
+
+The deterministic verdict is the product. The LLM is a **reader's aide** bolted on
+top — opt-in, and structurally incapable of changing the result.
+
+`genuine/llm/` makes **one** Groq call (LLaMA-3.3-70B, JSON mode) that returns
+two things for the human reviewer:
+
+- an **explanation** — plain-language prose about what the verdict and evidence
+  mean, and what to check in person;
+- **interview questions** — tied to the evidence, so an honest author can
+  demonstrate they actually wrote and understand the code (e.g. *"walk me through
+  your diff algorithm"* when a clone signal fired).
+
+Two properties are enforced, not promised:
+
+1. **The verdict is immutable.** The explainer's output attaches to the API
+   payload (`ai_opinion`, `interview_probes`), never to the `ScoreResult` the
+   aggregator produces. `test_explanation_never_changes_the_verdict` runs the
+   pipeline with the LLM on and off and asserts the composite is identical.
+2. **The model never sees raw code.** Its entire input is the verdict, the
+   sub-scores, and the human-safe evidence *summaries* — assembled by a function
+   whose signature *cannot* accept source or README text
+   (`test_input_boundary_has_no_raw_source_parameter`). That closes prompt
+   injection: a repo can't smuggle *"ignore previous instructions"* into the
+   prompt via a comment, because its comments are never in the prompt.
+
+No `GROQ_API_KEY`? Every path degrades to `None`/`[]` and the deterministic
+template report (`genuine/report.py`) stands alone. All Gate-5 tests run fully
+offline (mocked client); a guard fails the suite if any test attempts a live call.
+
+
 
 Requires Python ≥ 3.11 (developed on 3.13).
 
@@ -105,7 +139,7 @@ source .venv/Scripts/activate      # Windows (Git Bash);  .venv/bin/activate on 
 pip install -r requirements.txt
 pip install -e .
 
-pytest                              # 54 tests, ~90% coverage on the core
+pytest                              # 66 tests, ~88% coverage on the core
 ```
 
 ### CLI
@@ -118,6 +152,10 @@ genuine analyze ./some/repo
 genuine analyze ./tests/fixtures/renamed --candidate ./tests/fixtures/original
 
 genuine analyze ./some/repo --json      # full machine-readable payload
+
+# Add a Groq LLM explanation + interview questions (advisory; needs GROQ_API_KEY).
+# Without a key it prints a one-line notice and the deterministic report stands.
+genuine analyze ./some/repo --explain
 ```
 
 ### API
@@ -130,7 +168,7 @@ uvicorn genuine.api:app --reload
 |---|---|---|
 | `GET`  | `/health`      | Liveness |
 | `GET`  | `/rules`       | The active weights & thresholds (auditability) |
-| `POST` | `/analyze`     | `{"repo_url": "<url or local path>"}` → verdict + evidence + `job_id` |
+| `POST` | `/analyze`     | `{"repo_url": "<url or local path>", "explain": false}` → verdict + evidence + `job_id` (set `explain: true` to add the advisory `ai_opinion` + `interview_probes`) |
 | `GET`  | `/jobs/{id}`   | Fetch a persisted analysis |
 
 ---
@@ -164,11 +202,12 @@ genuine/
   ingestion/        # clone/fetch, language detection, significance ranking, MinHash
   signals/          # the four deterministic signals + swappable clone matcher
   scoring/          # rules.yaml (the auditable artifact) + aggregator
+  llm/              # Gate 5: advisory Groq explainer + interview probes (opt-in)
   api/              # FastAPI app
   pipeline.py       # end-to-end: ingest → signals → score → report → registry
   report.py         # zero-LLM template report (the neuro-symbolic fallback)
   cli.py            # `genuine analyze`
-tests/              # 54 tests incl. every spec §8.4 regression case
+tests/              # 66 tests incl. every spec §8.4 regression case
 ```
 
 ---
@@ -179,11 +218,15 @@ tests/              # 54 tests incl. every spec §8.4 regression case
 `rules.yaml`-driven scoring with the four-branch verdict + critical override, the
 shared registry, the CLI, and the FastAPI surface. Fully tested, offline.
 
+**Built now — Gate 5, the advisory LLM layer (`genuine/llm/`):** one Groq call
+that explains the finished verdict and generates evidence-tied interview
+questions, wired opt-in into the CLI (`--explain`) and API (`"explain": true`).
+It cannot alter the verdict and never sees raw code; the template report is the
+fallback when no key is set. Tested fully offline (mocked client).
+
 **Deferred to follow-up passes (per the spec):**
 
 - Gate 4 — RAG-backed README claim *extraction* + code-region retrieval.
-- Gate 5 — Groq LLaMA-3.3-70B explainer over the finished verdict (template
-  fallback already ships).
 - Gate 6 — React/Vite/Tailwind reviewer dashboard.
 - Gate 7 — evaluation dataset + leakage-audit harness.
 

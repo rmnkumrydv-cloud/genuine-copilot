@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from .ingestion.repo import ingest
-from .models import RepoAnalysis, ScoreResult
+from .models import AIOpinion, InterviewProbe, RepoAnalysis, ScoreResult
 from .report import render_template_report
 from .scoring import Rulebook, aggregate
 from .signals import analyze_commits, analyze_readme
@@ -30,6 +30,10 @@ class AnalysisResult:
     report_text: str
     self_excluded: list[str] = field(default_factory=list)
     matcher_name: str = ""
+    # Advisory LLM layer (Gate 5). Both stay empty unless `analyze(explain=True)`
+    # ran with a Groq key configured. Never inputs to scoring.
+    ai_opinion: Optional[AIOpinion] = None
+    interview_probes: list[InterviewProbe] = field(default_factory=list)
 
     def to_payload(self) -> dict:
         """API-facing dict: verdict + sub-scores + evidence + coverage + report."""
@@ -49,6 +53,9 @@ class AnalysisResult:
             "self_excluded_candidates": self.self_excluded,
             "matcher": self.matcher_name,
             "report_text": self.report_text,
+            # Advisory only — present (null/empty) for a stable schema.
+            "ai_opinion": self.ai_opinion.model_dump() if self.ai_opinion else None,
+            "interview_probes": [p.model_dump() for p in self.interview_probes],
         }
 
 
@@ -86,6 +93,7 @@ def analyze(
     rulebook: Optional[Rulebook] = None,
     register_in_registry: bool = True,
     top_k: int = 40,
+    explain: bool = False,
 ) -> AnalysisResult:
     init_schema(db_path)
     rb = rulebook or Rulebook.load()
@@ -119,10 +127,24 @@ def analyze(
         registry_register(db_path, analysis)
 
     report = render_template_report(analysis, score)
+
+    # --- advisory LLM layer (Gate 5), strictly on top of the final score ---
+    # Lazy import so the deterministic core never depends on the groq SDK.
+    ai_opinion = None
+    interview_probes: list[InterviewProbe] = []
+    if explain:
+        from .llm import review as llm_review
+
+        result = llm_review(score, repo_name=analysis.repo_name or analysis.repo_url)
+        ai_opinion = result.ai_opinion
+        interview_probes = result.interview_probes
+
     return AnalysisResult(
         analysis=analysis,
         score=score,
         report_text=report,
         self_excluded=clone.self_excluded,
         matcher_name="stdlib-ast",
+        ai_opinion=ai_opinion,
+        interview_probes=interview_probes,
     )

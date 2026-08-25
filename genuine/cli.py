@@ -27,6 +27,8 @@ def _build_parser() -> argparse.ArgumentParser:
     a.add_argument("--json", action="store_true", help="Emit the full JSON payload")
     a.add_argument("--top-k", type=int, default=40, help="How many significant files to deep-compare")
     a.add_argument("--no-register", action="store_true", help="Don't add this repo to the registry")
+    a.add_argument("--explain", action="store_true",
+                   help="Add a Groq LLM explanation + interview questions (advisory; needs GROQ_API_KEY)")
     return p
 
 
@@ -52,13 +54,41 @@ def main(argv: list[str] | None = None) -> int:
             token=settings.github_token,
             register_in_registry=not args.no_register,
             top_k=args.top_k,
+            explain=args.explain,
         )
         if args.json:
             print(json.dumps(result.to_payload(), indent=2, default=str))
         else:
             print(result.report_text)
+            if args.explain:
+                _print_explanation(result)
         return 0
     return 1
+
+
+def _print_explanation(result) -> None:
+    """Render the advisory LLM section (only called when --explain was passed)."""
+    if result.ai_opinion is None and not result.interview_probes:
+        hint = (
+            "the Groq call returned nothing"
+            if get_settings().has_llm
+            else "no GROQ_API_KEY is configured"
+        )
+        print(
+            f"\nAI EXPLANATION — unavailable ({hint}). "
+            "The deterministic report above stands on its own."
+        )
+        return
+
+    print("\n" + "=" * 70)
+    print("AI EXPLANATION  (advisory only — does not affect the verdict)")
+    print("=" * 70)
+    if result.ai_opinion is not None:
+        print(result.ai_opinion.summary)
+    if result.interview_probes:
+        print("\nInterview questions to verify authorship:")
+        for i, probe in enumerate(result.interview_probes, 1):
+            print(f"  {i}. {probe.question}  [{probe.targets_evidence_id}]")
 
 
 if __name__ == "__main__":

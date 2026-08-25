@@ -40,6 +40,7 @@ app.add_middleware(
 
 class AnalyzeRequest(BaseModel):
     repo_url: str
+    explain: bool = False  # opt-in Groq explanation + interview probes (advisory)
 
 
 @app.get("/health")
@@ -82,6 +83,7 @@ def analyze_repo(req: AnalyzeRequest) -> dict:
             db_path=s.db_file,
             cache_root=s.clone_dir,
             token=s.github_token,
+            explain=req.explain,
         )
         payload = result.to_payload()
         payload["job_id"] = job_id
