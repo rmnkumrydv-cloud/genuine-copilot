@@ -1,0 +1,17 @@
+# RAG + LLM layer (Gates 4-5). Installed separately — heavier wheels,
+# some lag Python releases. Keep out of the core install path.
+
+# Code chunking
+tree-sitter>=0.21
+tree-sitter-languages>=1.10
+
+# Embeddings + vector index
+sentence-transformers>=2.7
+faiss-cpu>=1.8
+
+# LLM provider (spec: Groq LLaMA-3.3-70B). Template fallback needs none of this.
+groq>=0.11
+
+# Optional orchestration (only if the explainer needs multi-step tool calls)
+# langchain>=0.2
+# langgraph>=0.1

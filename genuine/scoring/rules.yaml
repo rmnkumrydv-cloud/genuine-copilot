@@ -1,0 +1,42 @@
+# Genuine scoring rulebook — the auditable artifact shipped openly with the repo.
+#
+# DIRECTION: every sub-score is a SUSPICION value in [0, 1]; higher means more
+# likely inauthentic. The composite is a plain weighted sum:
+#
+#     composite = Σ weightᵢ · sub_scoreᵢ          (weights below sum to 1.0)
+#
+# Deliberate tradeoff (state this in the pitch): publishing exact weights and
+# thresholds trades some gameability for auditability. That is a considered
+# decision — a hiring-integrity tool that can't show its work is worthless.
+#
+# Everything here is data. Changing a number changes the verdict with NO code
+# change (enforced by tests/test_scoring.py::test_weights_are_data_not_code).
+
+weights:
+  clone_similarity: 0.45     # strongest signal: copied code is the core fraud
+  registry_match: 0.20       # near-duplicate of another submission
+  readme_consistency: 0.20   # README claims contradicted by the code
+  commit_forensics: 0.15     # fabricated / dumped history
+
+thresholds:
+  # composite >= flagged                    -> flagged
+  # review_low <= composite < flagged       -> needs_human_review
+  # composite < review_low                  -> clean
+  flagged: 0.65
+  review_low: 0.45
+
+critical_signals:
+  # A single signal this strong is decisive on its own -> flagged, regardless of
+  # the weighted composite. This is what lets clone similarity flag a verbatim
+  # copy by itself (spec §8.4-3): with clone weighted at 0.45, the composite
+  # alone tops out at 0.45 (needs_human_review), so corroboration would otherwise
+  # be required. These thresholds are applied to the FINAL (direction-weighted)
+  # sub-score, so a candidate that postdates the target never trips them.
+  clone_similarity: 0.85
+  registry_match: 0.90
+
+insufficient_signal:
+  # Too little to judge. Applied only when the composite is NOT already flagged,
+  # so strong copy evidence over thin coverage still flags (spec §6.2).
+  min_commits: 3
+  min_coverage: 0.35
