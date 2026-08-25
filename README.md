@@ -164,7 +164,38 @@ No `GROQ_API_KEY`? Every path degrades to `None`/`[]` and the deterministic
 template report (`genuine/report.py`) stands alone. All Gate-5 tests run fully
 offline (mocked client); a guard fails the suite if any test attempts a live call.
 
+---
 
+## Reviewer dashboard (Gate 6)
+
+`frontend/` is a React + Vite + TypeScript + Tailwind app that **renders** the
+deterministic verdict — it never computes one. It consumes only the API payload
+(verdict, sub-scores, evidence summaries, README claims, commit metadata, and the
+optional advisory note); it never receives repo source, consistent with the
+privacy stance above.
+
+- **Analyze** — submit a URL or local path, watch the pipeline run, read the report.
+- **Report** — the composite suspicion meter (with the review/flag thresholds
+  drawn in) and the four sub-score bars showing `weight × score → contribution`.
+- **Evidence** — a Recharts commit-cadence timeline (from the new
+  `commit_timeline` payload field), evidence cards grouped by signal, and the
+  README claim table with its RAG `file:line` citations.
+- **Interview prep** — the evidence-tied questions, each linking back to the exact
+  evidence card it probes.
+- **Review queue** — borderline `needs_human_review` cases first (via
+  `GET /jobs?status=…`). The advisory AI opinion is rendered in a visually
+  separated, dashed "advisory only" card so it can never be mistaken for symbolic
+  evidence — the neuro-symbolic boundary, made visible.
+
+```bash
+uvicorn genuine.api:app --reload      # terminal 1: the deterministic core at :8000
+cd frontend && npm install && npm run dev   # terminal 2: the dashboard at :5173
+```
+
+Dev proxies `/api/*` → `127.0.0.1:8000` (no CORS/base-URL config). See
+`frontend/README.md`.
+
+---
 
 Requires Python ≥ 3.11 (developed on 3.13).
 
@@ -174,7 +205,7 @@ source .venv/Scripts/activate      # Windows (Git Bash);  .venv/bin/activate on 
 pip install -r requirements.txt
 pip install -e .
 
-pytest                              # 84 tests, ~90% coverage on the core
+pytest                              # 87 tests, ~90% coverage on the core
 ```
 
 ### CLI
@@ -203,7 +234,8 @@ uvicorn genuine.api:app --reload
 |---|---|---|
 | `GET`  | `/health`      | Liveness |
 | `GET`  | `/rules`       | The active weights & thresholds (auditability) |
-| `POST` | `/analyze`     | `{"repo_url": "<url or local path>", "explain": false}` → verdict + evidence + `job_id` (set `explain: true` to add the advisory `ai_opinion` + `interview_probes`) |
+| `POST` | `/analyze`     | `{"repo_url": "<url or local path>", "explain": false}` → verdict + evidence + `commit_timeline` + `job_id` (set `explain: true` to add the advisory `ai_opinion` + `interview_probes`) |
+| `GET`  | `/jobs`        | Recent analyses (summaries); `?status=needs_human_review` powers the review queue |
 | `GET`  | `/jobs/{id}`   | Fetch a persisted analysis |
 
 ---
@@ -243,7 +275,8 @@ genuine/
   pipeline.py       # end-to-end: ingest → signals → score → report → registry
   report.py         # zero-LLM template report (the neuro-symbolic fallback)
   cli.py            # `genuine analyze`
-tests/              # 84 tests incl. every spec §8.4 regression case
+frontend/           # Gate 6: React/Vite/Tailwind reviewer dashboard (renders, never scores)
+tests/              # 87 tests incl. every spec §8.4 regression case
 ```
 
 ---
@@ -266,9 +299,15 @@ questions, wired opt-in into the CLI (`--explain`) and API (`"explain": true`).
 It cannot alter the verdict and never sees raw code; the template report is the
 fallback when no key is set. Tested fully offline (mocked client).
 
-**Deferred to follow-up passes (per the spec):**
+**Built now — Gate 6, the reviewer dashboard (`frontend/`):** a React/Vite/
+Tailwind app that renders the verdict, sub-score contributions, a Recharts
+commit-cadence timeline, the RAG-cited README claim table, and the borderline
+review queue — with the advisory AI opinion visually walled off from the symbolic
+evidence. It renders the payload; it never computes a score. Type-checks and
+builds clean.
 
-- Gate 6 — React/Vite/Tailwind reviewer dashboard.
+**Deferred to a follow-up pass (per the spec):**
+
 - Gate 7 — evaluation dataset + leakage-audit harness.
 
 The similarity matcher is intentionally swappable (`signals/matchers.py`):

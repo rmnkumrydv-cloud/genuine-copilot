@@ -102,6 +102,48 @@ def analyze_repo(req: AnalyzeRequest) -> dict:
         raise HTTPException(status_code=400, detail=f"Analysis failed: {exc}") from exc
 
 
+@app.get("/jobs")
+def list_jobs(status: str | None = None, limit: int = 50) -> dict:
+    """Recent analyses, newest first — powers the dashboard's review queue.
+
+    Each row is summarized (verdict + composite parsed from the stored result) so
+    the frontend can filter to ``needs_human_review`` without refetching each job.
+    """
+    s = get_settings()
+    init_schema(s.db_file)
+    limit = max(1, min(limit, 200))
+    with connect(s.db_file) as conn:
+        rows = conn.execute(
+            "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+    jobs: list[dict] = []
+    for row in rows:
+        summary = {
+            "job_id": row["id"],
+            "repo_url": row["repo_url"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "verdict": None,
+            "composite_score": None,
+            "repo_name": "",
+            "error": row["error"],
+        }
+        if row["result_json"]:
+            try:
+                result = json.loads(row["result_json"])
+                summary["verdict"] = result.get("verdict")
+                summary["composite_score"] = result.get("composite_score")
+                summary["repo_name"] = result.get("repo_name", "")
+            except (ValueError, TypeError):
+                pass
+        if status and summary["verdict"] != status and summary["status"] != status:
+            continue
+        jobs.append(summary)
+    return {"jobs": jobs, "count": len(jobs)}
+
+
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str) -> dict:
     s = get_settings()

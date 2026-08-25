@@ -50,6 +50,7 @@ class AnalysisResult:
             "compared_loc": self.analysis.compared_loc,
             "evidence": [e.model_dump() for e in self.score.evidence],
             "readme_claims": [c.model_dump() for c in self.analysis.readme_claims],
+            "commit_timeline": self._commit_timeline(),
             "self_excluded_candidates": self.self_excluded,
             "matcher": self.matcher_name,
             "report_text": self.report_text,
@@ -57,6 +58,27 @@ class AnalysisResult:
             "ai_opinion": self.ai_opinion.model_dump() if self.ai_opinion else None,
             "interview_probes": [p.model_dump() for p in self.interview_probes],
         }
+
+    def _commit_timeline(self) -> list[dict]:
+        """Compact per-commit series for the dashboard timeline (Recharts).
+
+        Public commit metadata only (sha, time, diff size, subject line) — the
+        same data the forensics signal already reasons over, never file source.
+        """
+        timeline: list[dict] = []
+        for c in self.analysis.commits:
+            subject = c.message.strip().splitlines()[0] if c.message.strip() else ""
+            timeline.append(
+                {
+                    "sha": c.sha[:7],
+                    "ts": c.timestamp.isoformat(),
+                    "additions": c.diff_stats.additions,
+                    "deletions": c.diff_stats.deletions,
+                    "subject": subject[:100],
+                }
+            )
+        timeline.sort(key=lambda e: e["ts"])
+        return timeline
 
 
 def _texts_for(analysis: RepoAnalysis, cache_root: Path) -> dict[str, str]:

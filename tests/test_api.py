@@ -58,6 +58,31 @@ def test_unknown_job_404(client):
     assert client.get("/jobs/does-not-exist").status_code == 404
 
 
+def test_analyze_payload_carries_commit_timeline(client):
+    r = client.post("/analyze", json={"repo_url": str(FIXTURES / "original")})
+    payload = r.json()
+    # Additive dashboard field: always present, a list (empty for a non-git dir).
+    assert isinstance(payload["commit_timeline"], list)
+
+
+def test_list_jobs_summarizes_recent_analyses(client):
+    client.post("/analyze", json={"repo_url": str(FIXTURES / "original")})
+    r = client.get("/jobs")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] >= 1
+    top = body["jobs"][0]
+    assert {"job_id", "repo_url", "status", "verdict", "composite_score"} <= set(top)
+    assert top["verdict"] == "insufficient_signal"  # parsed from the stored result
+
+
+def test_list_jobs_filters_by_verdict(client):
+    client.post("/analyze", json={"repo_url": str(FIXTURES / "original")})
+    # The only job is insufficient_signal, so a needs_human_review filter is empty.
+    assert client.get("/jobs", params={"status": "needs_human_review"}).json()["count"] == 0
+    assert client.get("/jobs", params={"status": "insufficient_signal"}).json()["count"] >= 1
+
+
 def test_analyze_bad_url_returns_400(client):
     r = client.post("/analyze", json={"repo_url": "not-a-url-or-path"})
     assert r.status_code == 400

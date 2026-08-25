@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  background-image: radial-gradient(
+    60rem 60rem at 85% -10%,
+    rgba(56, 189, 248, 0.06),
+    transparent 60%
+  );
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg shadow-black/20;
+  }
+
+  .card-tight {
+    @apply rounded-lg border border-slate-800 bg-slate-900/60 p-4;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold uppercase tracking-widest text-slate-400;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
+      transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-sky-500 text-slate-950 hover:bg-sky-400;
+  }
+
+  .btn-ghost {
+    @apply btn border border-slate-700 text-slate-200 hover:bg-slate-800;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-700 bg-slate-950/60 px-4 py-2.5 text-sm
+      text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none
+      focus:ring-1 focus:ring-sky-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .skeleton {
+    @apply bg-slate-800/70;
+    background-image: linear-gradient(
+      90deg,
+      rgba(148, 163, 184, 0) 0,
+      rgba(148, 163, 184, 0.12) 40px,
+      rgba(148, 163, 184, 0) 80px
+    );
+    background-size: 800px 100%;
+    @apply animate-shimmer;
+  }
+}
