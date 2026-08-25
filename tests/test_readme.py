@@ -54,3 +54,35 @@ def test_ambiguous_claim_stays_unverified():
 
 def test_empty_readme_scores_zero():
     assert analyze_readme("   ", [_py("main.py")], {"main.py": "x = 1\n"}).score == 0.0
+
+
+def test_expanded_vocab_flags_missing_datastore():
+    """Redis is in the expanded vocab: claimed in a Python repo but never a
+    driver import -> contradicted."""
+    files = [_py("worker.py", 3)]
+    texts = {"worker.py": "import os\n\ndef run():\n    return 1\n"}
+    res = analyze_readme("Uses Redis for the task queue.", files, texts)
+    assert res.score == 1.0
+    assert any(e.detail["tech"] == "redis" for e in res.evidence)
+
+
+def test_expanded_vocab_verified_via_driver_import():
+    """A claimed data store backed by its real driver import -> verified, cited."""
+    files = [_py("db.py", 3)]
+    texts = {"db.py": "import psycopg2\n\ndef connect():\n    return psycopg2.connect('')\n"}
+    res = analyze_readme("Persists to PostgreSQL.", files, texts)
+    assert res.score == 0.0
+    tech = [c for c in res.claims if c.claim_text == "Uses postgresql"]
+    assert tech and tech[0].verification_status == VerificationStatus.VERIFIED
+    assert tech[0].evidence_ref == "db.py"
+
+
+def test_frontend_tech_without_node_stays_unverified():
+    """Tailwind named in a pure-Python repo: no Node ecosystem -> no false flag."""
+    files = [_py("main.py", 1)]
+    texts = {"main.py": "print('hi')\n"}
+    res = analyze_readme("Styled with Tailwind.", files, texts)
+    assert res.score == 0.0
+    assert res.claims and all(
+        c.verification_status == VerificationStatus.UNVERIFIED for c in res.claims
+    )

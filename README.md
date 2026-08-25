@@ -10,8 +10,9 @@ READMEs that lie about the stack. It is built on one hard rule:
 > **Every originality judgment is deterministic, auditable, and reproducible.
 > An LLM never decides whether something is authentic.**
 
-AI is used only for *extraction, retrieval, and explanation* (later gates). The
-verdict itself comes from code you can read, re-run, and argue with — which is
+The LLM appears only at the very end, as an *explainer* (Gate 5) — even the
+README claim-extraction and code-region retrieval of Gate 4 are deterministic.
+The verdict itself comes from code you can read, re-run, and argue with — which is
 the only kind of verdict a hiring-integrity tool has any business producing.
 
 ---
@@ -98,6 +99,40 @@ never trip it.
 
 ---
 
+## README grounding & code retrieval (Gate 4)
+
+The `readme_consistency` signal answers *"does the README lie about the stack?"*
+Gate 4 (`genuine/rag/`) adds a second, **advisory** layer on top: it locates the
+code region behind each claim and attaches a `file:line` citation, so a reviewer
+sees not just *that* a claim checks out but *where*.
+
+It is deterministic RAG — **no embeddings, no network.** The corpus is a single
+repo's significant files, so a classic identifier-aware **TF-IDF cosine**
+retriever (`rag/retrieval.py`) is both sufficient and fully auditable — you can
+hand-check any score. Files are chunked by structure: each top-level `def`/`class`
+and the module preamble become their own retrievable region (`rag/chunking.py`),
+falling back to line windows for non-Python or unparseable files. Tokenization is
+identifier-aware, so the query `export csv` matches `def export_csv` and `fastapi`
+matches `from fastapi import FastAPI`.
+
+- **Tech-stack claims** (the scoring authority) stay deterministic and now carry a
+  citation to the importing file or manifest when verified. The checked
+  vocabulary spans web frameworks, data stores (Redis, Postgres, MongoDB),
+  scientific/ML stacks, and the JS/TS frontend — each gated on its ecosystem so a
+  claim is only ever *contradicted* when that ecosystem is plainly present.
+- **Feature / setup claims** (`rag/claims.py`) are extracted heuristically and
+  *grounded*: retrieval finds the implementing code → `VERIFIED` + citation, or a
+  miss → `UNVERIFIED`. A miss is **never** a contradiction, so grounding cannot
+  raise a false flag (`test_ungrounded_feature_is_unverified_not_contradicted`).
+
+The split is the point: grounding enriches the evidence a human reads but **never
+moves the suspicion score** — the deterministic contradiction path is byte-for-byte
+unchanged. And retrieval feeds the deterministic verifier, *not* the LLM, so Gate
+5's no-raw-code boundary stays intact: the model still sees only citations and
+summaries, never the retrieved source.
+
+---
+
 ## AI explanation & interview prep (Gate 5)
 
 The deterministic verdict is the product. The LLM is a **reader's aide** bolted on
@@ -139,7 +174,7 @@ source .venv/Scripts/activate      # Windows (Git Bash);  .venv/bin/activate on 
 pip install -r requirements.txt
 pip install -e .
 
-pytest                              # 66 tests, ~88% coverage on the core
+pytest                              # 84 tests, ~90% coverage on the core
 ```
 
 ### CLI
@@ -201,13 +236,14 @@ never influences the verdict. The shared registry stores only a MinHash
 genuine/
   ingestion/        # clone/fetch, language detection, significance ranking, MinHash
   signals/          # the four deterministic signals + swappable clone matcher
+  rag/              # Gate 4: deterministic TF-IDF retrieval + README claim grounding
   scoring/          # rules.yaml (the auditable artifact) + aggregator
   llm/              # Gate 5: advisory Groq explainer + interview probes (opt-in)
   api/              # FastAPI app
   pipeline.py       # end-to-end: ingest → signals → score → report → registry
   report.py         # zero-LLM template report (the neuro-symbolic fallback)
   cli.py            # `genuine analyze`
-tests/              # 66 tests incl. every spec §8.4 regression case
+tests/              # 84 tests incl. every spec §8.4 regression case
 ```
 
 ---
@@ -218,6 +254,12 @@ tests/              # 66 tests incl. every spec §8.4 regression case
 `rules.yaml`-driven scoring with the four-branch verdict + critical override, the
 shared registry, the CLI, and the FastAPI surface. Fully tested, offline.
 
+**Built now — Gate 4, RAG grounding (`genuine/rag/`):** deterministic,
+embedding-free TF-IDF retrieval over structure-aware code chunks. It attaches
+`file:line` citations to verified tech-stack claims and grounds README
+feature/setup claims to the code that implements them — advisory only, so it
+enriches the evidence without ever moving the deterministic score.
+
 **Built now — Gate 5, the advisory LLM layer (`genuine/llm/`):** one Groq call
 that explains the finished verdict and generates evidence-tied interview
 questions, wired opt-in into the CLI (`--explain`) and API (`"explain": true`).
@@ -226,7 +268,6 @@ fallback when no key is set. Tested fully offline (mocked client).
 
 **Deferred to follow-up passes (per the spec):**
 
-- Gate 4 — RAG-backed README claim *extraction* + code-region retrieval.
 - Gate 6 — React/Vite/Tailwind reviewer dashboard.
 - Gate 7 — evaluation dataset + leakage-audit harness.
 
