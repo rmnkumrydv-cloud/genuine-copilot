@@ -1,7 +1,6 @@
 # Genuine
 
 **A neuro-symbolic project-authenticity & interview-prep copilot.**
-Razorpay AI Buildathon 2026.
 
 Genuine scores how likely a GitHub repository is to be *genuinely the author's
 own work* — copied code, resubmitted projects, fabricated commit history, and
@@ -197,15 +196,17 @@ Dev proxies `/api/*` → `127.0.0.1:8000` (no CORS/base-URL config). See
 
 ---
 
+## Getting started
+
 Requires Python ≥ 3.11 (developed on 3.13).
 
 ```bash
 python -m venv .venv
-source .venv/Scripts/activate      # Windows (Git Bash);  .venv/bin/activate on macOS/Linux
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
 
-pytest                              # 87 tests, ~90% coverage on the core
+pytest                              # 105 tests
 ```
 
 ### CLI
@@ -237,6 +238,13 @@ uvicorn genuine.api:app --reload
 | `POST` | `/analyze`     | `{"repo_url": "<url or local path>", "explain": false}` → verdict + evidence + `commit_timeline` + `job_id` (set `explain: true` to add the advisory `ai_opinion` + `interview_probes`) |
 | `GET`  | `/jobs`        | Recent analyses (summaries); `?status=needs_human_review` powers the review queue |
 | `GET`  | `/jobs/{id}`   | Fetch a persisted analysis |
+
+### Docker
+
+```bash
+docker compose up --build
+# API at :8000, Dashboard at :8080
+```
 
 ---
 
@@ -271,48 +279,14 @@ genuine/
   rag/              # Gate 4: deterministic TF-IDF retrieval + README claim grounding
   scoring/          # rules.yaml (the auditable artifact) + aggregator
   llm/              # Gate 5: advisory Groq explainer + interview probes (opt-in)
+  eval/             # labeled evaluation corpus + harness + metrics
   api/              # FastAPI app
   pipeline.py       # end-to-end: ingest → signals → score → report → registry
   report.py         # zero-LLM template report (the neuro-symbolic fallback)
   cli.py            # `genuine analyze`
-frontend/           # Gate 6: React/Vite/Tailwind reviewer dashboard (renders, never scores)
-tests/              # 87 tests incl. every spec §8.4 regression case
+frontend/           # React/Vite/Tailwind reviewer dashboard (renders, never scores)
+tests/              # 105 tests incl. every spec §8.4 regression case
 ```
-
----
-
-## Status
-
-**Built now — the deterministic core (Gates 0–3):** ingestion, all four signals,
-`rules.yaml`-driven scoring with the four-branch verdict + critical override, the
-shared registry, the CLI, and the FastAPI surface. Fully tested, offline.
-
-**Built now — Gate 4, RAG grounding (`genuine/rag/`):** deterministic,
-embedding-free TF-IDF retrieval over structure-aware code chunks. It attaches
-`file:line` citations to verified tech-stack claims and grounds README
-feature/setup claims to the code that implements them — advisory only, so it
-enriches the evidence without ever moving the deterministic score.
-
-**Built now — Gate 5, the advisory LLM layer (`genuine/llm/`):** one Groq call
-that explains the finished verdict and generates evidence-tied interview
-questions, wired opt-in into the CLI (`--explain`) and API (`"explain": true`).
-It cannot alter the verdict and never sees raw code; the template report is the
-fallback when no key is set. Tested fully offline (mocked client).
-
-**Built now — Gate 6, the reviewer dashboard (`frontend/`):** a React/Vite/
-Tailwind app that renders the verdict, sub-score contributions, a Recharts
-commit-cadence timeline, the RAG-cited README claim table, and the borderline
-review queue — with the advisory AI opinion visually walled off from the symbolic
-evidence. It renders the payload; it never computes a score. Type-checks and
-builds clean.
-
-**Deferred to a follow-up pass (per the spec):**
-
-- Gate 7 — evaluation dataset + leakage-audit harness.
-
-The similarity matcher is intentionally swappable (`signals/matchers.py`):
-`copydetect`/JPlag can be slotted in behind the same interface for the Gate-2
-benchmark without touching the scorer.
 
 ---
 
