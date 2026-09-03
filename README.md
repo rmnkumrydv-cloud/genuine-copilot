@@ -2,6 +2,16 @@
 
 **A neuro-symbolic project-authenticity & interview-prep copilot.**
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-genuine--copilot2.vercel.app-blue?style=for-the-badge)](https://genuine-copilot2.vercel.app)
+[![GitHub](https://img.shields.io/badge/GitHub-genuine--copilot-181717?style=for-the-badge&logo=github)](https://github.com/rmnkumrydv-cloud/genuine-copilot)
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-105%20passed-brightgreen)
+
 Genuine scores how likely a GitHub repository is to be *genuinely the author's
 own work* — copied code, resubmitted projects, fabricated commit history, and
 READMEs that lie about the stack. It is built on one hard rule:
