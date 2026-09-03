@@ -19,8 +19,7 @@ htmlcov/
 *.key
 
 # ---- Project runtime data (regenerable) ----
-data/*.sqlite
-data/*.sqlite3
+data/*.sqlite*
 data/cache/
 data/clones/
 *.log

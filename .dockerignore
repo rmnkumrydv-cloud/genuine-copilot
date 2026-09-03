@@ -1,0 +1,27 @@
+# Keep the backend build context small and reproducible. The API image needs
+# only the `genuine` package, requirements.txt, pyproject.toml, and README.md.
+.git/
+.gitignore
+.venv/
+venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Runtime data (regenerable) — never bake it into the image.
+data/
+
+# Not needed by the API image.
+frontend/
+tests/
+docs/
+.env
+.env.local
+
+# Docs: exclude everything except the README that pyproject references.
+*.md
+!README.md

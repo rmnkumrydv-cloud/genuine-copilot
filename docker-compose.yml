@@ -1,0 +1,35 @@
+# Local-demo fallback (spec §4, "Docker Compose"): the whole product on one
+# host, no external hosting required. If the live demo is flaky near the
+# deadline, this is the backup.
+#
+#   docker compose up --build      # then open http://localhost:8080
+#
+# Optional creds (GITHUB_TOKEN / GROQ_API_KEY) are read from your shell or a
+# local .env file; unset is fine — the deterministic core and the template
+# report still run without them.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    volumes:
+      - genuine-data:/app/data      # persist SQLite (jobs + registry) + clones
+    ports:
+      - "8000:8000"                 # hit the API / docs directly at :8000 if wanted
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8080:80"                   # the dashboard: http://localhost:8080
+
+volumes:
+  genuine-data:
