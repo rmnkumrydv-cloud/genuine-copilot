@@ -1,0 +1,20 @@
+﻿services:
+  - type: web
+    name: genuine-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GENUINE_DB_PATH
+        value: /app/data/genuine.sqlite
+      - key: GENUINE_CLONE_CACHE
+        value: /app/data/clones
+    disk:
+      name: genuine-data
+      mountPath: /app/data
+      sizeGB: 1
